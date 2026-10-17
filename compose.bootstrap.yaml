@@ -1,0 +1,5 @@
+# Usar junto a compose.yaml solo para acceso por tunel SSH.
+services:
+  kuma:
+    ports:
+      - "127.0.0.1:3001:3001"

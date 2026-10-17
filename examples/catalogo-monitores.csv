@@ -1,0 +1,5 @@
+cliente,entorno,nombre,tipo,destino,intervalo_segundos,reintentos,responsable,publicar
+DEMO,produccion,web-publica,HTTP(S),https://cliente.example.invalid,60,2,Por asignar,no
+DEMO,pruebas,api-salud,HTTP(S),https://api.example.invalid/health,60,2,Por asignar,no
+DEMO,produccion,servicio-tcp,TCP,host-autorizado:puerto,60,2,Por asignar,no
+DEMO,produccion,respaldo-nocturno,Push,Generar URL secreta desde interfaz,90000,0,Por asignar,no
