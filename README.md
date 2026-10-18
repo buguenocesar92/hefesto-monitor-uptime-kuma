@@ -20,6 +20,32 @@ Configuración y scripts revisados estáticamente. No desplegado ni ejecutado co
 
 No publicar una instalación vacía antes de crear su administrador. No ejecutar dos instancias sobre el mismo volumen. En Coolify, la configuración base no publica puertos al host.
 
+## Despliegue en Coolify (MVP Hefesto)
+
+`compose.yaml` está pensado para Coolify: build pack Docker Compose, Traefik
+como proxy HTTPS, y nada que se salte el proxy ni dé poder sobre el host
+(sin `ports:`, `container_name`, `privileged`, `cap_add`, `devices`,
+`network_mode: host`, `pid/ipc: host`, `security_opt: unconfined`, ni
+binds fuera del repo o a `docker.sock`). Los nombres de proyecto y volumen
+son parametrizados con variables de entorno.
+
+Variables que Coolify debe inyectar en el recurso:
+
+- `COMPOSE_PROJECT_NAME` — nombre del proyecto que Coolify asigna; lo usa
+  el `name:` raíz del compose.
+- `DATA_VOLUME` — nombre del volumen Docker con los datos de Uptime Kuma
+  (SQLite, configuración, adjuntos). **Debe coincidir** con el volumen
+  creado por el bootstrap (`hefesto-monitor-<cliente>-data`).
+
+Antes de desplegar, conviene correr el verificador estático:
+
+```
+bash scripts/coolify-check.sh
+```
+
+Falla si el compose rompe el contrato de Coolify; devuelve `exit=0` cuando
+está conforme.
+
 ## Contenido
 Compose de producción y bootstrap, configuración por cliente, respaldo y restauración a volumen vacío, guías de operación y transferencia, catálogo CSV de monitores, plantillas de incidentes y reporte mensual.
 
