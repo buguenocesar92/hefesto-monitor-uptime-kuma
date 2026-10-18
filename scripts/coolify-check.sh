@@ -87,13 +87,14 @@ while IFS=$'\t' read -r svc motivos; do
 done <<< "$JQ_OUT"
 
 # Contrato 2: nombres parametrizados (no literales fijos).
-# a) name: a nivel raíz no debe tener valor literal.
-if grep -E '^name:[[:space:]]+[A-Za-z]' "$COMPOSE_FILE" >/dev/null; then
+# a) name: a nivel raíz no debe tener valor literal (con o sin comillas,
+#    y aunque el valor empiece por dígito: solo aceptamos ${VAR}).
+if grep -E '^name:[[:space:]]+["'\'']?[^$"'\''[:space:]]' "$COMPOSE_FILE" >/dev/null; then
     failures+=('compose: name fijo a nivel raíz (debe ser ${VAR})')
 fi
 
 # b) redes/volúmenes con name: literal (no ${...}).
-if grep -nE '^[[:space:]]+name:[[:space:]]+[A-Za-z]' "$COMPOSE_FILE" >/dev/null; then
+if grep -nE '^[[:space:]]+name:[[:space:]]+["'\'']?[^$"'\''[:space:]]' "$COMPOSE_FILE" >/dev/null; then
     failures+=('compose: red o volumen con name: literal (debe ser ${VAR})')
 fi
 
