@@ -77,10 +77,14 @@ read -r -d '' JQ_QUERY <<'JQE' || true
 JQE
 
 failures=()
+if ! JQ_OUT="$(printf '%s' "$RENDERED" | REPO_ROOT="$REPO_ROOT" jq -r "$JQ_QUERY")"; then
+    printf 'ERROR: jq falló al evaluar el contrato\n' >&2
+    exit 1
+fi
 while IFS=$'\t' read -r svc motivos; do
     [[ -z "$svc" ]] && continue
     failures+=("${svc}: ${motivos}")
-done < <(printf '%s' "$RENDERED" | REPO_ROOT="$REPO_ROOT" jq -r "$JQ_QUERY" 2>/dev/null || true)
+done <<< "$JQ_OUT"
 
 # Contrato 2: nombres parametrizados (no literales fijos).
 # a) name: a nivel raíz no debe tener valor literal.
