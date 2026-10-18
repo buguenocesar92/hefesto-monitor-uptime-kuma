@@ -56,7 +56,7 @@ read -r -d '' JQ_QUERY <<'JQE' || true
 | .key as $svc
 | (.value.volumes // []) as $vols
 | ($vols | map(select(.source != null and (.source | test("docker.sock")))) | length) as $dockersock
-| ($vols | map(select(.type == "bind" and (.source | type == "string") and (.source | startswith("/")) and (.source | startswith(env.REPO_ROOT) | not))) | length) as $external_binds
+| ($vols | map(select(.type == "bind" and (.source | type == "string") and (.source | startswith("/")) and ((.source == env.REPO_ROOT or (.source | startswith(env.REPO_ROOT + "/"))) | not))) | length) as $external_binds
 | [
     (select((.value.ports // [])        | length > 0) | "ports publicado al host"),
     (select(.value.container_name        != null)       | "container_name fijo"),
