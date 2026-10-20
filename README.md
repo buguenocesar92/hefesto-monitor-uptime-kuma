@@ -20,6 +20,45 @@ Configuración y scripts revisados estáticamente. No desplegado ni ejecutado co
 
 No publicar una instalación vacía antes de crear su administrador. No ejecutar dos instancias sobre el mismo volumen. En Coolify, la configuración base no publica puertos al host.
 
+## Despliegue en Coolify (MVP Hefesto)
+
+`compose.yaml` está pensado para Coolify: build pack Docker Compose, Traefik
+como proxy HTTPS, y nada que se salte el proxy ni dé poder sobre el host
+(sin `ports:`, `container_name`, `privileged`, `cap_add`, `devices`,
+`network_mode: host`, `pid/ipc: host`, `security_opt: unconfined`, ni
+binds fuera del repo o a `docker.sock`). Los nombres de proyecto y volumen
+son parametrizados con variables de entorno.
+
+Variables que Coolify debe inyectar en el recurso:
+
+- `COMPOSE_PROJECT_NAME` — definirlo a mano en el recurso con el mismo valor
+  usado en el bootstrap (lo exige `name:` del compose); Coolify no lo rellena.
+- `DATA_VOLUME` — nombre del volumen Docker con los datos de Uptime Kuma
+  (SQLite, configuración, adjuntos). **Debe coincidir** con el volumen
+  creado por el bootstrap (`hefesto-monitor-<cliente>-data`).
+
+Pasos operativos antes de publicar el dominio (detalle en `docs/COOLIFY.md`):
+
+- Crear el administrador y la 2FA por túnel a `127.0.0.1:3001` **antes**
+  de asignar el dominio en Coolify; un primer visitante sobre dominio
+  público crearía el admin sobre HTTPS, lo que no se puede deshacer sin
+  reinstalar.
+- Después del despliegue, verificar que la URL muestra la pantalla de
+  **login**; si aparece la pantalla de setup del primer usuario, el
+  volumen no coincide con el del bootstrap y hay que corregir
+  `DATA_VOLUME` antes de continuar.
+- El proxy debe soportar WebSocket: Uptime Kuma lo usa para push en vivo
+  del panel y de las páginas de estado.
+
+Antes de desplegar, conviene correr el verificador estático:
+
+```
+bash scripts/coolify-check.sh
+```
+
+Falla si el compose rompe el contrato de Coolify; devuelve `exit=0` cuando
+está conforme.
+
 ## Contenido
 Compose de producción y bootstrap, configuración por cliente, respaldo y restauración a volumen vacío, guías de operación y transferencia, catálogo CSV de monitores, plantillas de incidentes y reporte mensual.
 
