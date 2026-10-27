@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, coolify, 'plan/**', 'feature/**', 'bugfix/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validacion:
+    name: Compose, sintaxis, pruebas y secretos
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar bats, jq y gitleaks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats jq
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: El compose renderiza con el .env de ejemplo
+        run: docker compose --env-file .env.example -f compose.yaml config --quiet
+
+      - name: Sintaxis de los scripts
+        run: |
+          python3 -m py_compile scripts/*.py
+          shellcheck -S warning -x scripts/*.sh
+          bash -n scripts/*.sh
+
+      - name: Suite bats
+        run: bats tests/
+
+      - name: Buscar secretos en el historico
+        run: gitleaks detect --source . --no-banner --redact

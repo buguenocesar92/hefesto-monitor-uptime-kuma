@@ -59,6 +59,68 @@ bash scripts/coolify-check.sh
 Falla si el compose rompe el contrato de Coolify; devuelve `exit=0` cuando
 está conforme.
 
+## Menor privilegio
+
+El servicio web **no corre como root**. `compose.yaml` lo declara explícito:
+
+- `user: "1000:1000"`: usuario sin privilegios.
+- `security_opt: [no-new-privileges:true]`: el proceso no puede ganar
+  privilegios que no tenía.
+- `cap_drop: [ALL]`: sin capacidades de Linux.
+
+**`cap_add` no es la respuesta.** Agregar `cap_add` para resolver un problema
+de privilegios rompe el contrato de Coolify: un contenedor con capacidades
+extra puede saltarse el aislamiento. Cuando hace falta resolver algo que
+parece pedir una capacidad, la alternativa es un usuario que no la necesite: el
+servicio `permisos` (un solo disparo, con la misma imagen fijada por digest)
+deja el volumen `data` con el dueño de ese usuario, y el servicio web arranca
+después con `depends_on: service_completed_successfully`.
+
+`scripts/coolify-check.sh` verifica las tres reglas: un servicio que expone un
+puerto que no corra como root, o que no traiga `no-new-privileges` o
+`cap_drop: ALL`, hace fallar el verificador.
+
+## Respaldo y restauración
+
+`scripts/backup.py` produce, en `backups/<timestamp>/`:
+
+| Archivo | Qué es |
+|---|---|
+| `data.tar.gz` | dump de `/app/data` (verificado: contiene `kuma.db`) |
+| `SHA256SUMS` | sha256 de `data.tar.gz` |
+| `manifest.json` | `software`, `version`, `database`, `sha256`, `status` |
+| `env.vars` | **solo los nombres** de variable del `.env`, nunca los valores |
+| `env.age` | el `.env` cifrado con `age`, si hay `AGE_RECIPIENTE` configurado |
+
+**El `.env` no se copia en claro.** Si no hay receptor `age` configurado, el
+respaldo sale sin él y el manifiesto lo dice; no hay modo degradado a texto
+plano. Con `AGE_RECIPIENTE` definido pero sin `age` instalado, el respaldo
+falla en vez de dejar el `.env` a la vista.
+
+`scripts/restore.py` valida manifiesto, checksum y rutas del tar, exige que el
+volumen destino esté vacío, no arranca el servicio y deja un rastro de
+auditoría en `logs/restore.log` (origen, sha256 verificado, destino, resultado).
+
+El contrato completo, que es normativo para todo el ecosistema Hefesto, está en
+`docs/CONTRATO-RESPALDO.md`. La política de datos personales (Ley 21.719) está
+en `docs/POLITICA-DATOS-PERSONALES.md`.
+
+## Pruebas y CI
+
+```bash
+bats tests/                     # 19 pruebas
+bats tests/backup_restore.bats  # ciclo backup -> restore con datos sintéticos
+bats tests/compose.bats         # contrato del compose (menor privilegio)
+bats tests/lineas.bats          # finales de linea LF y sintaxis
+```
+
+Las pruebas del ciclo usan datos sintéticos, un `.env` temporal y un stub de
+`docker`: **no levantan ningún contenedor ni tocan ningún volumen real**.
+
+La CI (`.github/workflows/ci.yml`) corre en cada push y pull request:
+`docker compose config` con el `.env` de ejemplo, `py_compile`, `shellcheck`,
+la suite `bats` y `gitleaks` sobre el historial.
+
 ## Contenido
 Compose de producción y bootstrap, configuración por cliente, respaldo y restauración a volumen vacío, guías de operación y transferencia, catálogo CSV de monitores, plantillas de incidentes y reporte mensual.
 

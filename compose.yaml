@@ -1,8 +1,35 @@
 name: ${COMPOSE_PROJECT_NAME:?Run scripts/configure.py}
 services:
+  # Servicio de un solo disparo: deja el volumen con el dueño del usuario sin
+  # privilegios. Es la alternativa a cap_add, que el contrato de Coolify
+  # prohibe (rompe el aislamiento del contenedor). Correr el servicio web como
+  # root seria peor que un chown de un solo uso.
+  permisos:
+    image: louislam/uptime-kuma:2.5.6-slim@sha256:5db97dbbef610276e1699f3ece586c3509c8fd35de75d45ff5109761a1b377dc
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1000:1000 /app/data"]
+    volumes:
+      - data:/app/data
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
   kuma:
     image: louislam/uptime-kuma:2.5.6-slim@sha256:5db97dbbef610276e1699f3ece586c3509c8fd35de75d45ff5109761a1b377dc
     restart: unless-stopped
+    # Usuario sin privilegios: el panel de Uptime Kuma no necesita root y con
+    # root cualquier vulnerabilidad del panel es root en el host.
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      permisos:
+        condition: service_completed_successfully
     environment:
       TZ: America/Santiago
       DATA_DIR: /app/data

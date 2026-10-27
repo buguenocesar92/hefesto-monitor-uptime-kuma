@@ -98,6 +98,36 @@ if grep -nE '^[[:space:]]+name:[[:space:]]+["'\'']?[^$"'\''[:space:]]' "$COMPOSE
     failures+=('compose: red o volumen con name: literal (debe ser ${VAR})')
 fi
 
+# Contrato 3: el servicio que expone el puerto no corre con privilegios.
+# El contrato de Coolify prohibe cap_add, asi que la alternativa a una
+# capacidad no es sumar una capacidad: es correr como usuario que no la
+# necesita, sin capacidades y sin poder ganarlas.
+read -r -d '' JQ_QUERY3 <<'JQE' || true
+.services
+| to_entries[]
+| select((.value.profiles // null) == null)
+| select((.value.expose // []) | length > 0)
+| .key as $svc
+| [
+    (select(((.value.user // "") | tostring) as $u | ($u == "" or $u == "0" or $u == "0:0" or $u == "root")) | "corre como root"),
+    (select(((.value.security_opt // []) | map(tostring) | map(select(. == "no-new-privileges:true" or . == "no-new-privileges")) | length) == 0) | "sin no-new-privileges"),
+    (select(((.value.cap_drop // []) | map(tostring | ascii_downcase) | map(select(. == "all")) | length) == 0) | "sin cap_drop ALL")
+  ]
+| map(select(. != null)) as $violations
+| select(($violations | length) > 0)
+| [$svc, ($violations | join("; "))]
+| @tsv
+JQE
+
+if ! JQ_OUT3="$(printf '%s' "$RENDERED" | jq -r "$JQ_QUERY3")"; then
+    printf 'ERROR: jq fallo al evaluar el contrato de privilegios\n' >&2
+    exit 1
+fi
+while IFS=$'\t' read -r svc motivos; do
+    [[ -z "$svc" ]] && continue
+    failures+=("${svc}: ${motivos}")
+done <<< "$JQ_OUT3"
+
 if [[ ${#failures[@]} -gt 0 ]]; then
     printf 'Falla: compose no conforme al contrato de Coolify:\n' >&2
     printf '  - %s\n' "${failures[@]}" >&2

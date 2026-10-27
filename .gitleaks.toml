@@ -1,0 +1,12 @@
+title = "hefesto-monitor-uptime-kuma"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Sin excepciones por ahora: el repo no versiona secretos ni fixtures que se
+parezcan a uno. La lista queda vacia a proposito, para que la primera
+excepcion que aparezca sea una decision consciente y documentada.
+"""
+paths = []
